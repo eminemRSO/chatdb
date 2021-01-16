@@ -1,0 +1,62 @@
+version: '2'
+services:
+   
+  users:
+    container_name: users
+    build: ../user/.
+    networks:
+      - net
+    ports:
+      - 8080:8080
+    environment:
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_URL=db
+      - DB_NAME=user
+      - DB_PORT=5432
+    depends_on:
+      - db
+
+
+  chat:
+    container_name: chat
+    build: .
+    ports:
+      - 8082:8082
+    environment:
+      - DB_USER=mongodb1234
+      - DB_PASSWORD=passcode345
+      - DB_URL=db3
+      - TOKEN_URL=http://localhost:8080/v1/token
+    depends_on:
+      - db3
+      - users
+    networks:
+      - net
+
+  db:
+    image: postgres
+    environment:
+      - POSTGRES_DB=user
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    networks:
+      - net
+    ports:
+      - 5433:5432
+
+  db3:
+    image: mongo:4.0.3
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongodb1234
+      MONGO_INITDB_ROOT_PASSWORD: passcode345
+      MONGO_INITDB_DATABASE: chat
+
+    networks:
+      - net
+
+networks:
+  net:
+    driver: bridge
