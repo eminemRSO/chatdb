@@ -7,6 +7,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from config import TOKEN_URL, SECRET_KEY, ALGORITHM
 from fastapi.middleware.cors import CORSMiddleware
+from uuid import uuid4
+
+FAIL = False
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=TOKEN_URL)
 
@@ -43,7 +46,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
 
 
 @app.get('/conversation_with/{user}', response_model=List[Message])
-async def list_users(user: str, username: str = Depends(get_current_user)):
+async def list_messages_with_user(user: str, username: str = Depends(get_current_user)):
     """
     :param user: username
     :param username: username of the one calling this with jwt token
@@ -79,7 +82,7 @@ async def list_users(user: str, username: str = Depends(get_current_user)):
 
 
 @app.get('/messages', response_model=List[Message])
-async def list_users(username: str = Depends(get_current_user)):
+async def list_messages(username: str = Depends(get_current_user)):
     """
     :param username: username of the one calling this with jwt token
     :return: all messages from user username
@@ -101,8 +104,95 @@ async def list_users(username: str = Depends(get_current_user)):
 
 
 @app.post('/message', response_model=Message)
-async def create_user(text: str, receiver: str, username: str = Depends(get_current_user)):
+async def create_message(text: str, receiver: str, username: str = Depends(get_current_user)):
     create = {"sender": username, "receiver": receiver, "text": text}
     ret = chat.insert_one(create)
     create["id"] = ret.inserted_id
     return Message(**create)
+
+
+@app.get("/v1/health/live_check", response_model=str)
+async def live_check():
+    return "OK"
+
+
+@app.get("/v1/health/test_crash", response_model=str)
+async def set_to_fail():
+    global FAIL
+    FAIL = True
+    return "OK"
+
+
+@app.get("/v1/health/db_ready", response_model=dict)
+async def test_db():
+    global FAIL
+    if FAIL:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Intentional fail",
+        )
+    sender = str(uuid4())
+    receiver = str(uuid4())
+    text = str(uuid4())
+    create = {"sender": sender, "receiver": receiver, "text": text}
+    ret = chat.insert_one(create)
+    create["id"] = ret.inserted_id
+    messages = []
+    for message in chat.find({
+        "$and": [
+            {
+                "sender": {"$eq": sender}
+            },
+            {
+                "receiver": {"$eq": receiver}
+            },
+            {
+                "text": {"$eq": text}
+            }
+        ]
+    }):
+        messages.append(Message(**message))
+
+    print(len(messages))
+    if len(messages) != 1:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to retrieve message",
+        )
+    chat.delete_one({
+        "$and": [
+        {
+            "sender": {"$eq": sender}
+        },
+        {
+            "receiver": {"$eq": receiver}
+        },
+        {
+            "text": {"$eq": text}
+        }
+        ]
+    })
+    messages = []
+    for message in chat.find({
+        "$and": [
+            {
+                "sender": {"$eq": sender}
+            },
+            {
+                "receiver": {"$eq": receiver}
+            },
+            {
+                "text": {"$eq": text}
+            }
+        ]
+    }):
+        messages.append(Message(**message))
+
+    print(len(messages))
+    if len(messages) != 0:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to delete message",
+        )
+    return {"database_check": "ok"}
+
