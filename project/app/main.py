@@ -8,6 +8,7 @@ from jose import JWTError, jwt
 from config import TOKEN_URL, SECRET_KEY, ALGORITHM
 from fastapi.middleware.cors import CORSMiddleware
 from uuid import uuid4
+import data
 
 FAIL = False
 
@@ -45,70 +46,30 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
     return username
 
 
-@app.get('/conversation_with/{user}', response_model=List[Message])
+@app.get('/conversation_with/{user}', response_model=List[dict])
 async def list_messages_with_user(user: str, username: str = Depends(get_current_user)):
     """
     :param user: username
     :param username: username of the one calling this with jwt token
     :return: conversation between two users
     """
-    messages = []
-    for message in chat.find({
-        "$or": [
-            {
-                "$and": [
-                    {
-                        "receiver": {"$eq": user}
-                    },
-                    {
-                        "sender": {"$eq": username}
-                    }
-                ]
-            },
-            {
-                "$and": [
-                    {
-                        "receiver": {"$eq": username}
-                    },
-                    {
-                        "sender": {"$eq": user}
-                    }
-                ]
-            }
-        ]
-    }):
-        messages.append(Message(**message))
-    return messages
+    return data.find_conversation(chat, name_a=user, name_b=username)
 
 
-@app.get('/messages', response_model=List[Message])
+@app.get('/messages', response_model=List[dict])
 async def list_messages(username: str = Depends(get_current_user)):
     """
     :param username: username of the one calling this with jwt token
     :return: all messages from user username
     """
-    messages = []
-    for message in chat.find({
-        "$or": [
-            {
-                "sender": {"$eq": username}
-            },
-            {
-                "receiver": {"$eq": username}
-
-            }
-        ]
-    }):
-        messages.append(Message(**message))
-    return messages
+    return data.user_messages(chat, name=username)
 
 
-@app.post('/message', response_model=Message)
+@app.post('/message', response_model=dict)
 async def create_message(text: str, receiver: str, username: str = Depends(get_current_user)):
     create = {"sender": username, "receiver": receiver, "text": text}
-    ret = chat.insert_one(create)
-    create["id"] = ret.inserted_id
-    return Message(**create)
+    ret = data.create_message(chat, create)
+    return ret
 
 
 @app.get("/v1/health/live_check", response_model=str)
@@ -134,24 +95,8 @@ async def test_db():
     sender = str(uuid4())
     receiver = str(uuid4())
     text = str(uuid4())
-    create = {"sender": sender, "receiver": receiver, "text": text}
-    ret = chat.insert_one(create)
-    create["id"] = ret.inserted_id
-    messages = []
-    for message in chat.find({
-        "$and": [
-            {
-                "sender": {"$eq": sender}
-            },
-            {
-                "receiver": {"$eq": receiver}
-            },
-            {
-                "text": {"$eq": text}
-            }
-        ]
-    }):
-        messages.append(Message(**message))
+    create = data.create_message(chat, {"sender": sender, "receiver": receiver, "text": text})
+    messages = data.get_messages(chat, sender=sender, receiver=receiver, text=text)
 
     print(len(messages))
     if len(messages) != 1:
@@ -159,34 +104,8 @@ async def test_db():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Failed to retrieve message",
         )
-    chat.delete_one({
-        "$and": [
-        {
-            "sender": {"$eq": sender}
-        },
-        {
-            "receiver": {"$eq": receiver}
-        },
-        {
-            "text": {"$eq": text}
-        }
-        ]
-    })
-    messages = []
-    for message in chat.find({
-        "$and": [
-            {
-                "sender": {"$eq": sender}
-            },
-            {
-                "receiver": {"$eq": receiver}
-            },
-            {
-                "text": {"$eq": text}
-            }
-        ]
-    }):
-        messages.append(Message(**message))
+    messages = data.delete_messages(chat, sender=sender, receiver=receiver, text=text)
+    messages = data.get_messages(chat, sender=sender, receiver=receiver, text=text)
 
     print(len(messages))
     if len(messages) != 0:

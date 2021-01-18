@@ -27,7 +27,7 @@ services:
       - DB_USER=admin2
       - DB_PASSWORD=admin
       - DB_URL=cluster0.fyxpu.mongodb.net
-      - TOKEN_URL=http://users:8081/v1/token
+      - TOKEN_URL=http://localhost:8081/v1/token
     depends_on:
       - db3
       - users
