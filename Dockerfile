@@ -6,6 +6,6 @@ COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 COPY ./project/app .
 
-EXPOSE 8080
+EXPOSE 8083
 
-CMD ["uvicorn", "main:app", "--port", "8080", "--host", "0.0.0.0", "--reload"]
+CMD ["uvicorn", "main:app", "--port", "8083", "--host", "0.0.0.0", "--reload"]
