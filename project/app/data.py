@@ -8,9 +8,7 @@ def find_conversation(db, name_a, name_b):
     out = []
     global messages
     for j in messages:
-        if messages[j]["sender"] == name_a and messages[j]["receiver"] == name_b:
-            out.append(messages[j])
-        if messages[j]["sender"] == name_b and messages[j]["receiver"] == name_a:
+        if (messages[j]["sender"] == name_a and messages[j]["receiver"] == name_b) or (messages[j]["sender"] == name_b and messages[j]["receiver"] == name_a):
             out.append(messages[j])
 
     return out

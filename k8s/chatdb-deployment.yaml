@@ -33,7 +33,7 @@ spec:
             - name: DB_NAME
               value: "chat"
             - name: TOKEN_URL
-              value: "http://51.132.211.245//:8081/v1/token"
+              value: "http://51.132.211.245:8081/v1/token"
           ports:
             - containerPort: 8083
               name: server
