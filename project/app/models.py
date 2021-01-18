@@ -4,14 +4,16 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from config import DB_PASSWORD, DB_USER, DB_AUTH_SOURCE, AUTH_MECHANISM, DB_URL
 
+client = MongoClient("mongodb+srv://" + DB_USER + ":"+DB_PASSWORD+"@"+DB_URL+"/chat?retryWrites=true&w=majority")
 
-client = MongoClient(DB_URL,
-                      username=DB_USER,
-                      password=DB_PASSWORD,
-                      authSource=DB_AUTH_SOURCE,
-                      authMechanism=AUTH_MECHANISM)
+#client = MongoClient(DB_URL,
+#                      username=DB_USER,
+#                      password=DB_PASSWORD,
+#                      authSource=DB_AUTH_SOURCE,
+#                      authMechanism=AUTH_MECHANISM)
 
 db = client["chat"]
+#db.authenticate('admin', 'admin')
 chat = db["messages"]
 
 

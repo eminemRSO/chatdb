@@ -5,3 +5,4 @@ passlib
 python-jose[cryptography]
 bcrypt
 pymongo
+dnspython
